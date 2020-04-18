@@ -2855,7 +2855,7 @@ def pages_from(input):
 
 
 def process_dump(input_file, template_file, out_file, file_size, file_compress,
-                 process_count):
+                 process_count, extract_proc=None):
     """
     :param input_file: name of the wikipedia dump file; '-' to read from stdin
     :param template_file: optional file with template definitions.
@@ -2864,6 +2864,9 @@ def process_dump(input_file, template_file, out_file, file_size, file_compress,
     :param file_compress: whether to compress files with bzip.
     :param process_count: number of extraction processes to spawn.
     """
+
+    if extract_proc is None:
+        extract_proc = extract_process
 
     if input_file == '-':
         input = sys.stdin
@@ -2956,7 +2959,7 @@ def process_dump(input_file, template_file, out_file, file_size, file_compress,
     logging.info("Using %d extract processes.", worker_count)
     workers = []
     for i in range(worker_count):
-        extractor = Process(target=extract_process,
+        extractor = Process(target=extract_proc,
                             args=(options, i, jobs_queue, output_queue))
         extractor.daemon = True  # only live while parent process lives
         extractor.start()
@@ -3109,8 +3112,7 @@ minFileSize = 200 * 1024
 
 def main():
 
-    parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]),
-                                     formatter_class=argparse.RawDescriptionHelpFormatter,
+    parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]), formatter_class=argparse.RawDescriptionHelpFormatter,
                                      description=__doc__)
     parser.add_argument("input",
                         help="XML wiki dump file")

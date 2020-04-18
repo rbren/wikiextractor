@@ -1,0 +1,62 @@
+from WikiExtractor import process_dump, options, Extractor, logging, get_url
+from io import StringIO
+
+options.keepLinks = False
+options.keepSections = False
+options.keepLists = False
+options.toHTML = False
+options.write_json = True
+options.print_revision = False
+
+options.quiet = False
+options.debug = False
+options.log_file = "log.txt"
+
+input_file="wiki.dump.bz2"
+output_path="output"
+file_size = 1000 * 1024
+
+def extract_process(opts, i, jobs_queue, output_queue):
+    """Pull tuples of raw page content, do CPU/regex-heavy fixup, push finished text
+    :param i: process id.
+    :param jobs_queue: where to get jobs.
+    :param output_queue: where to queue extracted text for output.
+    """
+    print("EXTRACT PROC")
+
+    out = StringIO()                 # memory buffer
+
+    while True:
+        job = jobs_queue.get()  # job is (id, title, page, page_num)
+        if job:
+            id, revid, title, page, page_num = job
+            try:
+                e = CustomExtractor(*job[:4]) # (id, revid, title, page)
+                page = None              # free memory
+                e.extract(out)
+                text = out.getvalue()
+            except:
+                text = ''
+                logging.exception('Processing page: %s %s', id, title)
+
+            output_queue.put((page_num, text))
+            out.truncate(0)
+            out.seek(0)
+        else:
+            logging.debug('Quit extractor')
+            break
+    out.close()
+
+class CustomExtractor(Extractor):
+    def write_output(self, out, text):
+        """
+        :param out: a memory file
+        :param text: the text of the page
+        """
+        url = get_url(self.id)
+        if options.write_json:
+            print("write", self.id, text[1])
+
+process_dump(input_file, None, output_path, file_size,
+             False, 1, extract_process)
+
