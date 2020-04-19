@@ -106,6 +106,12 @@ version = '2.75'
 
 ## PARAMS ####################################################################
 
+ID_MODULUS = os.environ["ID_MODULUS"]
+ID_RESIDUE = os.environ["ID_RESIDUE"]
+if ID_MODULUS is not None:
+    ID_MODULUS = int(ID_MODULUS)
+    ID_RESIDUE = int(ID_RESIDUE)
+
 options = SimpleNamespace(
 
     ##
@@ -217,11 +223,14 @@ g_page_total = 0
 g_page_articl_total=0
 g_page_articl_used_total=0
 # page filtering logic -- remove templates, undesired xml namespaces, and disambiguation pages
-def keepPage(ns, catSet, page):
+def keepPage(id, ns, catSet, page):
     global g_page_articl_total,g_page_total,g_page_articl_used_total
     g_page_total += 1
     if ns != '0':               # Aritcle
         return False
+    if ID_MODULUS is not None:
+        if int(id) % ID_MODULUS != ID_RESIDUE:
+            return False
     # remove disambig pages if desired
     g_page_articl_total += 1
     if options.filter_disambig_pages:
@@ -2969,7 +2978,7 @@ def process_dump(input_file, template_file, out_file, file_size, file_compress,
     page_num = 0
     for page_data in pages_from(input):
         id, revid, title, ns, catSet, page = page_data
-        if keepPage(ns, catSet, page):
+        if keepPage(id, ns, catSet, page):
             # slow down
             delay = 0
             if spool_length.value > max_spool_length:

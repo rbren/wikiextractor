@@ -54,7 +54,7 @@ class CustomExtractor(Extractor):
         :param out: a memory file
         :param text: the text of the page
         """
-        print(self.title)
+        print(self.id, self.title)
         url = get_url(self.id)
         text = '\n'.join(lines)
         token_counts = get_token_counts(text)
