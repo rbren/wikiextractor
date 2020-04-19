@@ -1,3 +1,6 @@
+.envrc
+wiki.dump.bz2
+
 local/
 tmp/
 

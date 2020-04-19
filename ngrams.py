@@ -1,5 +1,7 @@
 from WikiExtractor import process_dump, options, Extractor, logging, get_url
 from io import StringIO
+import db
+from nlp import get_token_counts
 
 options.keepLinks = False
 options.keepSections = False
@@ -22,7 +24,6 @@ def extract_process(opts, i, jobs_queue, output_queue):
     :param jobs_queue: where to get jobs.
     :param output_queue: where to queue extracted text for output.
     """
-    print("EXTRACT PROC")
 
     out = StringIO()                 # memory buffer
 
@@ -48,14 +49,16 @@ def extract_process(opts, i, jobs_queue, output_queue):
     out.close()
 
 class CustomExtractor(Extractor):
-    def write_output(self, out, text):
+    def write_output(self, out, lines):
         """
         :param out: a memory file
         :param text: the text of the page
         """
+        print(self.title)
         url = get_url(self.id)
-        if options.write_json:
-            print("write", self.id, text[1])
+        text = '\n'.join(lines)
+        token_counts = get_token_counts(text)
+        db.process_document(self.id, self.title, token_counts)
 
 process_dump(input_file, None, output_path, file_size,
              False, 1, extract_process)
