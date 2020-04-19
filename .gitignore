@@ -1,5 +1,7 @@
 .envrc
 wiki.dump.bz2
+output/
+log.txt
 
 local/
 tmp/
