@@ -2,6 +2,8 @@
 wiki.dump.bz2
 output/
 log.txt
+deploy/jobs
+.kubeconfig
 
 local/
 tmp/
