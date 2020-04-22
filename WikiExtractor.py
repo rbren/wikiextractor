@@ -106,11 +106,26 @@ version = '2.75'
 
 ## PARAMS ####################################################################
 
-ID_MODULUS = os.environ["ID_MODULUS"]
-ID_RESIDUE = os.environ["ID_RESIDUE"]
-if ID_MODULUS is not None:
-    ID_MODULUS = int(ID_MODULUS)
-    ID_RESIDUE = int(ID_RESIDUE)
+logging.basicConfig(level=logging.INFO)
+
+ID_MODULUS = None
+ID_RESIDUE = None
+if 'ID_MODULUS' in os.environ:
+    ID_MODULUS = int(os.environ["ID_MODULUS"])
+    ID_RESIDUE = int(os.environ["ID_RESIDUE"])
+
+MIN_ARTICLE = None
+if 'MIN_ARTICLE' in os.environ:
+    MIN_ARTICLE = int(os.environ["MIN_ARTICLE"])
+
+def is_valid_id(id):
+    id_int = int(id)
+    if ID_MODULUS is not None and id_int % ID_MODULUS != ID_RESIDUE:
+        return False
+    if MIN_ARTICLE is not None and id_int < MIN_ARTICLE:
+        logging.info("skipping %s", id)
+        return False
+    return True
 
 options = SimpleNamespace(
 
@@ -228,9 +243,8 @@ def keepPage(id, ns, catSet, page):
     g_page_total += 1
     if ns != '0':               # Aritcle
         return False
-    if ID_MODULUS is not None:
-        if int(id) % ID_MODULUS != ID_RESIDUE:
-            return False
+    if not is_valid_id(id):
+        return False
     # remove disambig pages if desired
     g_page_articl_total += 1
     if options.filter_disambig_pages:
@@ -991,7 +1005,7 @@ class Extractor(object):
             # logging.debug('%*sEXPAND> %s', self.frame.depth, '', body)
             return ''
 
-        logging.debug('%*sEXPAND %s', self.frame.depth, '', body)
+        #logging.debug('%*sEXPAND %s', self.frame.depth, '', body)
         parts = splitParts(body)
         # title is the portion before the first |
         title = parts[0].strip()
@@ -1009,7 +1023,7 @@ class Extractor(object):
 
         if title in self.magicWords.values:
             ret = self.magicWords[title]
-            logging.debug('%*s<EXPAND %s %s', self.frame.depth, '', title, ret)
+            #logging.debug('%*s<EXPAND %s %s', self.frame.depth, '', title, ret)
             return ret
 
         # Parser functions.
@@ -1031,7 +1045,7 @@ class Extractor(object):
             parts[0] = title[colon + 1:].strip()  # side-effect (parts[0] not used later)
             # arguments after first are not evaluated
             ret = callParserFunction(funct, parts, self)
-            logging.debug('%*s<EXPAND %s %s', self.frame.depth, '', funct, ret)
+            #logging.debug('%*s<EXPAND %s %s', self.frame.depth, '', funct, ret)
             return ret
 
         title = fullyQualifiedTemplateTitle(title)
@@ -1053,10 +1067,10 @@ class Extractor(object):
             del options.templates[title]
         else:
             # The page being included could not be identified
-            logging.debug('%*s<EXPAND %s %s', self.frame.depth, '', title, '')
+            #logging.debug('%*s<EXPAND %s %s', self.frame.depth, '', title, '')
             return ''
 
-        logging.debug('%*sTEMPLATE %s: %s', self.frame.depth, '', title, template)
+        #logging.debug('%*sTEMPLATE %s: %s', self.frame.depth, '', title, template)
 
         # tplarg          = "{{{" parts "}}}"
         # parts           = [ title *( "|" part ) ]
@@ -1108,7 +1122,7 @@ class Extractor(object):
         instantiated = template.subst(params, self)
         value = self.transform(instantiated)
         self.frame = self.frame.pop()
-        logging.debug('%*s<EXPAND %s %s', self.frame.depth, '', title, value)
+        #logging.debug('%*s<EXPAND %s %s', self.frame.depth, '', title, value)
         return value
 
 
@@ -1936,7 +1950,7 @@ def callParserFunction(functionName, args, extractor):
         functionName = functionName.lower()
         if functionName == '#invoke':
             module, fun = args[0].strip(), args[1].strip()
-            logging.debug('%*s#invoke %s %s %s', extractor.frame.depth, '', module, fun, args[2:])
+            #logging.debug('%*s#invoke %s %s %s', extractor.frame.depth, '', module, fun, args[2:])
             # special handling of frame
             if len(args) == 2:
                 # find parameters in frame whose title is the one of the original
@@ -1955,7 +1969,7 @@ def callParserFunction(functionName, args, extractor):
                 params = [extractor.transform(p) for p in args[2:]] # evaluates them
                 params = extractor.templateParams(params)
             ret = sharp_invoke(module, fun, params)
-            logging.debug('%*s<#invoke %s %s %s', extractor.frame.depth, '', module, fun, ret)
+            #logging.debug('%*s<#invoke %s %s %s', extractor.frame.depth, '', module, fun, ret)
             return ret
         if functionName in parserFunctions:
             # branching functions use the extractor to selectively evaluate args
@@ -2808,7 +2822,11 @@ def pages_from(input):
     inText = False
     redirect = False
     title = None
+    lines_without_yield = 0
     for line in input:
+        lines_without_yield += 1
+        if lines_without_yield % 1000 == 0:
+            logging.debug("noyield %s %s went %d lines without yield", id, title, lines_without_yield)
         if not isinstance(line, text_type): line = line.decode('utf-8')
         if '<' not in line:  # faster than doing re.search()
             if inText:
@@ -2829,6 +2847,10 @@ def pages_from(input):
             redirect = False
         elif tag == 'id' and not id:
             id = m.group(3)
+            if not is_valid_id(id):
+                last_id = id
+                ns = '0'
+                continue
         elif tag == 'id' and not revid:
             revid = m.group(3)
         elif tag == 'title':
@@ -2854,6 +2876,8 @@ def pages_from(input):
             page.append(line)
         elif tag == '/page':
             if id != last_id and not redirect:
+                logging.debug("yield %s %s after %d", id, title, lines_without_yield)
+                lines_without_yield = 0
                 yield (id, revid, title, ns,catSet, page)
                 last_id = id
                 ns = '0'
@@ -2861,7 +2885,6 @@ def pages_from(input):
             revid = None
             title = None
             page = []
-
 
 def process_dump(input_file, template_file, out_file, file_size, file_compress,
                  process_count, extract_proc=None):
@@ -2978,20 +3001,28 @@ def process_dump(input_file, template_file, out_file, file_size, file_compress,
     page_num = 0
     for page_data in pages_from(input):
         id, revid, title, ns, catSet, page = page_data
-        if keepPage(id, ns, catSet, page):
+        keep = keepPage(id, ns, catSet, page)
+        logging.info("keep %s: %s", id, keep)
+        if keep:
             # slow down
             delay = 0
+            logging.debug("spool: %d", spool_length.value)
             if spool_length.value > max_spool_length:
                 # reduce to 10%
                 while spool_length.value > max_spool_length/10:
+                    logging.info("delaying...")
                     time.sleep(10)
                     delay += 10
             if delay:
-                logging.info('Delay %ds', delay)
+                logging.info('Delayed a total of %ds', delay)
             job = (id, revid, title, page, page_num)
             jobs_queue.put(job) # goes to any available extract_process
             page_num += 1
+            if page_num % report_period == 0:
+                logging.info("extracted %d pages", page_num)
         page = None             # free memory
+
+    logging.info("Done processing pages")
 
     input.close()
 
@@ -3050,7 +3081,7 @@ def extract_process(opts, i, jobs_queue, output_queue):
             out.truncate(0)
             out.seek(0)
         else:
-            logging.debug('Quit extractor')
+            logging.info('Quit extractor')
             break
     out.close()
 
@@ -3108,7 +3139,7 @@ def reduce_process(opts, output_queue, spool_length,
             # FIXME: if an extractor dies, process stalls; the other processes
             # continue to produce pairs, filling up memory.
             if len(spool) > 200:
-                logging.debug('Collected %d, waiting: %d, %d', len(spool),
+                logging.info('Collected %d, waiting: %d, %d', len(spool),
                               next_page, next_page == page_num)
     if output != sys.stdout:
         output.close()
