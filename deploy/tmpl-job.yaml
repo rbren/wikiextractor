@@ -1,0 +1,46 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: wikidata-$ID_RESIDUE-of-$ID_MODULUS
+  labels:
+    app: wikidata
+spec:
+  template:
+    metadata:
+      name: wikidata
+      labels:
+        app: wikidata
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: wikidata
+        image: quay.io/robertbrennan/wikidata:0.0.8
+        imagePullPolicy: Always
+        command:
+        - sh
+        - -c
+        - |
+          python ngrams.py
+        resources:
+          requests:
+            memory: 128M
+            cpu: 100m
+          limits:
+            memory: 256M
+            cpu: 200m
+        env:
+        - name: ID_MODULUS
+          value: "$ID_MODULUS"
+        - name: ID_RESIDUE
+          value: "$ID_RESIDUE"
+        - name: MS_PASSWORD
+          value: "$MS_PASSWORD"
+        - name: MS_USER
+          value: "$MS_USER"
+        - name: MS_HOST
+          value: "$MS_HOST"
+        - name: MS_DATABASE
+          value: "$MS_DATABASE"
+        - name: MIN_ARTICLE
+          value: "1000000"
+
