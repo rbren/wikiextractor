@@ -1,59 +1,92 @@
-import psycopg2
+import pymysql.cursors
+
+import warnings
 import os
 
-dbname = os.environ["PG_DATABASE"]
-host = os.environ["PG_HOST"]
-user = os.environ["PG_USER"]
-pw = os.environ["PG_PASSWORD"]
-conn_str = "dbname=%s host=%s user=%s password=%s" % (dbname, host, user, pw)
-conn = psycopg2.connect(conn_str)
+dbname = os.environ["MS_DATABASE"]
+host = os.environ["MS_HOST"]
+user = os.environ["MS_USER"]
+pw = os.environ["MS_PASSWORD"]
+
+connection = pymysql.connect(user=user, password=pw,
+                              host=host,
+                              db=dbname)
 
 MAX_INSERT = 1000
 
-def execute(cmd, args):
-    cur = conn.cursor()
-    cur.execute(cmd, args)
-    result = cur.fetchall()
-    cur.close()
-    conn.commit()
-    return result
+def execute(cmd, args, multi=False):
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        with connection.cursor() as cursor:
+            cursor.execute(cmd, args)
+    connection.commit()
+
+def retrieve(cmd, args, multi=False):
+    with connection.cursor() as cursor:
+        cursor.execute(cmd, args)
+        return cursor.fetchall() if multi else cursor.fetchone()
 
 def close():
-    conn.close()
+    connection.close()
 
-def process_document(id, title, token_counts):
+def process_document(doc_id, title, token_counts):
+    add_document(doc_id, title)
     tokens = list(token_counts.keys())
-    token_ids = add_tokens(tokens)
-    token_ids = [i[0] for i in token_ids]
-    add_document(id, title)
+    tokens.sort()
+    token_ids = get_tokens(tokens)
+    to_add = [t for t in tokens if t not in token_ids]
+    if len(to_add) > 0:
+        add_tokens(to_add)
+        added = get_tokens(to_add)
+        token_ids = {**token_ids, **added}
     counts = []
-    for idx in range(len(tokens)):
-        counts.append((id, token_ids[idx], token_counts[tokens[idx]]))
+    counts = [(doc_id, token_ids[token], token_counts[token]) for token in token_ids]
+    counts.sort()
     add_token_counts(counts)
 
 def add_document(id, title):
-    return execute("INSERT INTO documents (id, title) VALUES (%s, %s) ON CONFLICT DO NOTHING returning id", (id, title))
+    return execute("INSERT IGNORE INTO documents (id, title) VALUES (%s, %s)", (id, title))
 
 def add_tokens(tokens):
     if len(tokens) > MAX_INSERT:
-        ids = add_tokens(tokens[:MAX_INSERT])
-        ids += add_tokens(tokens[MAX_INSERT:])
-        return ids
-    q = "INSERT INTO tokens (token) VALUES " + ", ".join(["(%s)"] * len(tokens))
-    q += " ON CONFLICT (token) DO UPDATE SET dummy=true RETURNING id"
-    return execute(q, [str(t) for t in tokens])
+        add_tokens(tokens[:MAX_INSERT])
+        add_tokens(tokens[MAX_INSERT:])
+        return
+    tokens = [str(t) for t in tokens]
+    q = "INSERT IGNORE INTO tokens (token) VALUES " + ", ".join(["(%s)"] * len(tokens))
+    execute(q, tokens, True)
+
+def get_tokens(tokens):
+    q = "SELECT token, id FROM tokens WHERE token IN ("
+    q += ", ".join(["%s"] * len(tokens)) + ")"
+    all = retrieve(q, tokens, True)
+    map = {}
+    for data in all:
+        map[data[0]] = data[1]
+    return map
 
 def add_token_counts(counts):
     if len(counts) > MAX_INSERT:
-        ids = add_token_counts(counts[:MAX_INSERT])
-        ids += add_token_counts(counts[MAX_INSERT:])
-        return ids
+        add_token_counts(counts[:MAX_INSERT])
+        add_token_counts(counts[MAX_INSERT:])
+        return
+    delete_token_counts(counts)
     q = "INSERT INTO token_counts (document, token, num) VALUES "
     q += ", ".join(["(%s, %s, %s)"] * len(counts))
-    q += " ON CONFLICT (token, document) DO UPDATE SET num=EXCLUDED.num RETURNING id"
+    q += " ON DUPLICATE KEY UPDATE num=VALUES(num)"
     values = [item for sublist in counts for item in sublist]
-    return execute(q, values)
+    execute(q, values, True)
+
+def delete_token_counts(counts):
+    if len(counts) > MAX_INSERT:
+        delete_token_counts(counts[:MAX_INSERT])
+        delete_token_counts(counts[MAX_INSERT:])
+        return
+    q = "DELETE FROM token_counts WHERE (document, token) IN "
+    q += "(" + ", ".join(["(%s, %s)"] * len(counts)) + ")"
+    values = [item for sublist in counts for item in sublist[0:2]]
+    execute(q, values, True)
 
 if __name__ == "__main__":
-    res = add_tokens(["foo", "bar", "foo"])
-    print(res)
+    process_document(1, "doc 1", {"c": 3, "a": 1, "b": 2})
+    process_document(2, "doc 2", {"c": 2, "a": 10, "d": 4})
