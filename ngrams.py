@@ -3,6 +3,9 @@ from io import StringIO
 import db
 from nlp import get_token_counts
 import time
+from multiprocessing import Process, Queue
+
+from timeout import timeout
 
 options.keepLinks = False
 options.keepSections = False
@@ -53,6 +56,10 @@ def extract_process(opts, i, jobs_queue, output_queue):
             break
     out.close()
 
+def get_token_counts_process(queue, text):
+    toks = get_token_counts(text)
+    queue.put(toks)
+
 class CustomExtractor(Extractor):
     def write_output(self, out, lines, retry=0):
         """
@@ -66,9 +73,15 @@ class CustomExtractor(Extractor):
         logging.info("DOC %s %s %d", self.id, self.title, retry)
         text = '\n'.join(lines)
 
+        queue = Queue()
+        tok_proc = Process(target=get_token_counts_process, args=(queue, text))
+        tok_proc.start()
+
         try:
             logging.info("get tc %s %s", self.id, self.title)
-            token_counts = get_token_counts(text)
+            with timeout(5):
+                tok_proc.join()
+                token_counts = queue.get()
             logging.info("got tc %s %s", self.id, self.title)
         except TimeoutError as e:
             logging.error("Timed out while waiting for token counts: %s %s", self.id, self.title)

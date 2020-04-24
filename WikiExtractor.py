@@ -2993,7 +2993,7 @@ def process_dump(input_file, template_file, out_file, file_size, file_compress,
     for i in range(worker_count):
         extractor = Process(target=extract_proc,
                             args=(options, i, jobs_queue, output_queue))
-        extractor.daemon = True  # only live while parent process lives
+        #extractor.daemon = True  # only live while parent process lives
         extractor.start()
         workers.append(extractor)
 
