@@ -1,7 +1,10 @@
 import pymysql.cursors
 
 import warnings
+import logging
 import os
+
+DELETE_FIRST = False
 
 dbname = os.environ["MS_DATABASE"]
 host = os.environ["MS_HOST"]
@@ -30,18 +33,23 @@ def close():
     connection.close()
 
 def process_document(doc_id, title, token_counts):
+    logging.info("add %s %s", doc_id, title)
     add_document(doc_id, title)
     tokens = list(token_counts.keys())
     tokens.sort()
+    logging.info("tok %s %s %d", doc_id, title, len(tokens))
     token_ids = get_tokens(tokens)
     to_add = [t for t in tokens if t not in token_ids]
     if len(to_add) > 0:
+        logging.info("add tok %s %s %d", doc_id, title, len(to_add))
         add_tokens(to_add)
+        logging.info("get ids %s %s %d", doc_id, title, len(to_add))
         added = get_tokens(to_add)
         token_ids = {**token_ids, **added}
     counts = []
     counts = [(doc_id, token_ids[token], token_counts[token]) for token in token_ids]
     counts.sort()
+    logging.info("add cts %s %s %d", doc_id, title, len(counts))
     add_token_counts(counts)
 
 def add_document(id, title):
@@ -70,7 +78,8 @@ def add_token_counts(counts):
         add_token_counts(counts[:MAX_INSERT])
         add_token_counts(counts[MAX_INSERT:])
         return
-    delete_token_counts(counts)
+    if DELETE_FIRST:
+        delete_token_counts(counts)
     q = "INSERT INTO token_counts (document, token, num) VALUES "
     q += ", ".join(["(%s, %s, %s)"] * len(counts))
     q += " ON DUPLICATE KEY UPDATE num=VALUES(num)"

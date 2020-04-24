@@ -1,6 +1,13 @@
+import logging
+import re
+import time
+
 from spacy.tokenizer import Tokenizer
 from spacy.lang.en import English
-import re
+
+from timeout import timeout
+
+MAX_TOKENIZE_TIME = 5
 
 nlp = English()
 sentencizer = nlp.create_pipe("sentencizer")
@@ -20,15 +27,21 @@ def normalize(s):
     return txt
 
 def get_token_counts(text):
-    token_counts = {}
-    tokens = tokenizer(text)
-    for tok in tokens:
-        tok = normalize(tok)
-        if tok == '':
-            continue
-        if tok not in token_counts:
-            token_counts[tok] = 0
-        token_counts[tok] += 1
+    start = time.time()
+    with timeout(MAX_TOKENIZE_TIME):
+        token_counts = {}
+        logging.info("tokenize %d", len(text))
+        tokens = tokenizer(text)
+        logging.info("tokenized %d", len(text))
+        for tok in tokens:
+            tok = normalize(tok)
+            if tok == '':
+                continue
+            if tok not in token_counts:
+                token_counts[tok] = 0
+            token_counts[tok] += 1
+    end = time.time()
+    logging.info("tok took %.2fs", end - start)
     return token_counts
 
 if __name__ == "__main__":

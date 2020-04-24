@@ -61,19 +61,29 @@ class CustomExtractor(Extractor):
         """
         if retry == MAX_RETRIES:
             raise Exception("Failed to add " + self.id + " " + self.title)
+
         start = time.time()
-        logging.info("DOC %s %d %s", self.id, retry, self.title)
-        url = get_url(self.id)
+        logging.info("DOC %s %s %d", self.id, self.title, retry)
         text = '\n'.join(lines)
-        token_counts = get_token_counts(text)
+
         try:
+            logging.info("get tc %s %s", self.id, self.title)
+            token_counts = get_token_counts(text)
+            logging.info("got tc %s %s", self.id, self.title)
+        except TimeoutError as e:
+            logging.error("Timed out while waiting for token counts: %s %s", self.id, self.title)
+            return self.write_output(out, lines, retry+1)
+
+        try:
+            logging.info("proc doc %s %s", self.id, self.title)
             db.process_document(self.id, self.title, token_counts)
+            logging.info("done doc %s %s", self.id, self.title)
         except Exception as e:
-            logging.warning("error on", self.id, self.title, retry, e)
-            self.write_output(out, lines, retry+1)
-        if retry == 0:
-            end = time.time()
-            logging.info("TOOK %s %.2fs", self.id, end - start)
+            logging.error("Error while processing %s %s %d: %s", self.id, self.title, retry, e)
+            return self.write_output(out, lines, retry+1)
+
+        end = time.time()
+        logging.info("TOOK %s %.2fs", self.id, end - start)
 
 process_dump(input_file, None, output_path, file_size,
              False, 1, extract_process)
