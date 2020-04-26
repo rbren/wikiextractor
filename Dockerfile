@@ -6,4 +6,3 @@ ENV PYTHONUNBUFFERED=1
 
 COPY *.py ./
 
-CMD "python ngrams.py"
