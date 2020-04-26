@@ -14,7 +14,7 @@ spec:
       restartPolicy: Never
       containers:
       - name: wikidata
-        image: quay.io/robertbrennan/wikidata:0.0.8
+        image: quay.io/robertbrennan/wikidata:0.1.1
         imagePullPolicy: Always
         command:
         - sh
@@ -41,6 +41,4 @@ spec:
           value: "$MS_HOST"
         - name: MS_DATABASE
           value: "$MS_DATABASE"
-        - name: MIN_ARTICLE
-          value: "1000000"
 
