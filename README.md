@@ -1,10 +1,14 @@
 # WikiVectors
 This is a fork of [WikiExtractor](https://github.com/attardi/wikiextractor).
 
-This project processes a [Wikipedia Dump](https://dumps.wikimedia.org/) by
-crawling through each article, passing it through a custom
+This project processes a [Wikipedia Dump](https://dumps.wikimedia.org/) to
+create a distributed-bag-of-words model for each English-language article.
+Effectively, it counts the number of times a particular word occurs in
+each article.
+
+The extractor crawls through each article, passing it through a custom
 [spaCy tokenizer](https://spacy.io/api/tokenizer),
-and sending the resulting word counts
+and sends the resulting word counts to a MySQL database.
 
 ## Setup
 
