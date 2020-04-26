@@ -20,7 +20,7 @@ spec:
         - sh
         - -c
         - |
-          python ngrams.py
+          python main.py
         resources:
           requests:
             memory: 128M

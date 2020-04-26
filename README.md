@@ -54,7 +54,7 @@ But note that it will probably take months to complete!
 ```
 curl -L "http://dumps.wikimedia.org/enwiki/latest/enwiki-latest-pages-articles.xml.b
 z2" > wiki.dump.bz2
-python3 ngrams.py
+python3 main.py
 ```
 
 To process faster, you can use a Kubernetes cluster to run
