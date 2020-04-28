@@ -42,6 +42,7 @@ DELETE FROM categorylinks WHERE
   cl_to LIKE '%isambiguation%' OR
   cl_to LIKE 'Pages_%' OR
   cl_to LIKE '%_pages' OR
+  cl_to LIKE '%rticles%' OR
   cl_to LIKE '%ikidata%' OR
   cl_to LIKE '%ikimedia%' OR
   cl_to LIKE '%ikipedia%' or
@@ -49,6 +50,8 @@ DELETE FROM categorylinks WHERE
   cl_to LIKE '%_files' or
   cl_to LIKE '%edirects%' OR
   cl_to LIKE '%free_media' OR
+  cl_to LIKE '%_templates' OR
+  cl_to LIKE 'CS1%' OR
   cl_to LIKE '%_no_TOC';
 ```
 
