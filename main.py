@@ -24,6 +24,7 @@ output_path="output"
 file_size = 1000 * 1024
 
 MAX_RETRIES=5
+ADD_TOKENS = False
 
 def extract_process(opts, i, jobs_queue, output_queue):
     """Pull tuples of raw page content, do CPU/regex-heavy fixup, push finished text
@@ -57,8 +58,11 @@ def extract_process(opts, i, jobs_queue, output_queue):
     out.close()
 
 def get_token_counts_process(queue, text):
-    toks = get_token_counts(text)
-    queue.put(toks)
+    try:
+        toks = get_token_counts(text)
+        queue.put(toks)
+    except TimeoutError as e:
+        logging.error("Timed out while waiting for token counts")
 
 class CustomExtractor(Extractor):
     def write_output(self, out, lines, retry=0):
@@ -72,28 +76,32 @@ class CustomExtractor(Extractor):
         start = time.time()
         logging.info("DOC %s %s %d", self.id, self.title, retry)
         text = '\n'.join(lines)
-
-        queue = Queue()
-        tok_proc = Process(target=get_token_counts_process, args=(queue, text))
-        tok_proc.start()
-
-        try:
-            logging.info("get tc %s %s", self.id, self.title)
-            with timeout(5):
-                tok_proc.join()
-                token_counts = queue.get()
-            logging.info("got tc %s %s", self.id, self.title)
-        except TimeoutError as e:
-            logging.error("Timed out while waiting for token counts: %s %s", self.id, self.title)
-            return self.write_output(out, lines, retry+1)
-
-        try:
+        if not ADD_TOKENS:
             logging.info("proc doc %s %s", self.id, self.title)
-            db.process_document(self.id, self.title, token_counts)
+            db.process_document(self.id, self.title, text)
             logging.info("done doc %s %s", self.id, self.title)
-        except Exception as e:
-            logging.error("Error while processing %s %s %d: %s", self.id, self.title, retry, e)
-            return self.write_output(out, lines, retry+1)
+        else:
+            queue = Queue()
+            tok_proc = Process(target=get_token_counts_process, args=(queue, text))
+            tok_proc.start()
+
+            try:
+                logging.info("get tc %s %s", self.id, self.title)
+                with timeout(5):
+                    tok_proc.join()
+                    token_counts = queue.get()
+                logging.info("got tc %s %s", self.id, self.title)
+            except TimeoutError as e:
+                logging.error("Process timed out while waiting for token counts: %s %s", self.id, self.title)
+                return self.write_output(out, lines, retry+1)
+
+            try:
+                logging.info("proc doc %s %s", self.id, self.title)
+                db.process_document(self.id, self.title, text, token_counts)
+                logging.info("done doc %s %s", self.id, self.title)
+            except Exception as e:
+                logging.error("Error while processing %s %s %d: %s", self.id, self.title, retry, e)
+                return self.write_output(out, lines, retry+1)
 
         end = time.time()
         logging.info("TOOK %s %.2fs", self.id, end - start)

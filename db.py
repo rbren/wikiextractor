@@ -3,8 +3,10 @@ import pymysql.cursors
 import warnings
 import logging
 import os
+import zlib
+import base64
 
-DELETE_FIRST = False
+DELETE_FIRST = True
 
 dbname = os.environ["MS_DATABASE"]
 host = os.environ["MS_HOST"]
@@ -32,9 +34,12 @@ def retrieve(cmd, args, multi=False):
 def close():
     connection.close()
 
-def process_document(doc_id, title, token_counts):
+def process_document(doc_id, title, text, token_counts=None):
     logging.info("add %s %s", doc_id, title)
-    add_document(doc_id, title)
+    add_document(doc_id, title, text)
+    if token_counts is None:
+        return
+
     tokens = list(token_counts.keys())
     tokens.sort()
     logging.info("tok %s %s %d", doc_id, title, len(tokens))
@@ -52,8 +57,10 @@ def process_document(doc_id, title, token_counts):
     logging.info("add cts %s %s %d", doc_id, title, len(counts))
     add_token_counts(counts)
 
-def add_document(id, title):
-    return execute("INSERT IGNORE INTO documents (id, title) VALUES (%s, %s)", (id, title))
+def add_document(id, title, text):
+    text = zlib.compress(bytes(text, 'utf-8'))
+    text = base64.b64encode(text)
+    return execute("INSERT INTO documents (id, title, text) VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE text=VALUES(text)", (id, title, text))
 
 def add_tokens(tokens):
     if len(tokens) > MAX_INSERT:

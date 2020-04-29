@@ -14,7 +14,7 @@ spec:
       restartPolicy: Never
       containers:
       - name: wikidata
-        image: quay.io/robertbrennan/wikidata:0.1.1
+        image: quay.io/robertbrennan/wikidata:0.2.1
         imagePullPolicy: Always
         command:
         - sh
