@@ -22,6 +22,12 @@ MS_HOST
 MS_DATABASE
 ```
 
+You can then create the tables:
+```
+mysql -h $MS_HOST -u $MS_USER -D $MS_DATABASE --password=$MS_PASSWORD < migrations/001_init.sql
+mysql -h $MS_HOST -u $MS_USER -D $MS_DATABASE --password=$MS_PASSWORD < migrations/002_text.sql
+```
+
 ### Category Links
 Wikipedia provides a MySQL backup of all links to category pages.
 We can ingest these and clean up some of the ones we don't need.
@@ -61,7 +67,7 @@ But note that it will probably take months to complete!
 ```
 curl -L "http://dumps.wikimedia.org/enwiki/latest/enwiki-latest-pages-articles.xml.b
 z2" > wiki.dump.bz2
-python3 main.py
+python3 extract/main.py
 ```
 
 To process faster, you can use a Kubernetes cluster to run
