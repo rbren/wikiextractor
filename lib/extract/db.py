@@ -103,6 +103,27 @@ def delete_token_counts(counts):
     values = [item for sublist in counts for item in sublist[0:2]]
     execute(q, values, True)
 
+def get_documents_for_category(cat_id):
+    q = "SELECT cl_from FROM categorylinks WHERE cl_to=%s"
+    results = retrieve(q, [cat_id], True)
+    return [r[0] for r in results]
+
+def get_token_counts_for_document(id):
+    print("get toks", id)
+    q = """
+    SELECT tokens.token, num from token_counts
+        INNER JOIN tokens
+        ON tokens.id=token_counts.token
+    WHERE
+        document=%s
+    ORDER BY num
+    """
+    results = retrieve(q, [id], True)
+    ret = {}
+    for res in results:
+        ret[res[0]] = res[1]
+    return ret
+
 if __name__ == "__main__":
     process_document(1, "doc 1", {"c": 3, "a": 1, "b": 2})
     process_document(2, "doc 2", {"c": 2, "a": 10, "d": 4})
