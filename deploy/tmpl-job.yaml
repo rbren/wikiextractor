@@ -20,7 +20,7 @@ spec:
         - sh
         - -c
         - |
-          python main.py
+          python extract/main.py
         resources:
           requests:
             memory: 128M
