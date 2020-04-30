@@ -33,9 +33,9 @@ def get_stddev(docs):
             stddevs[tok] = statistics.stdev(freqs[tok]) / statistics.mean(freqs[tok])
     return stddevs
 
-def get_vectors(category):
-    doc_ids = db.get_documents_for_category(category)
-    docs = [db.get_token_counts_for_document(id) for id in doc_ids]
+def get_vectors(doc_ids):
+    details = db.get_token_counts_for_documents(doc_ids)
+    docs = [details[id] for id in doc_ids]
     freqs = [get_frequencies(doc) for doc in docs]
     stddev = get_stddev(freqs)
 
@@ -43,8 +43,6 @@ def get_vectors(category):
     for tok in stddev:
         stddev_sorted.append((tok, stddev[tok]))
     stddev_sorted = sorted(stddev_sorted, key=lambda tup: tup[1])
-    for s in stddev_sorted:
-        print(s)
     stddev_sorted = [s for s in stddev_sorted if s[1] > STD_DEV_CUTOFF]
 
     vectors = [[] for d in docs]
@@ -56,4 +54,6 @@ def get_vectors(category):
     return np.array(vectors)
 
 if __name__ == '__main__':
-    print(get_vectors('20th-century_musicologists'))
+    cat = '20th-century_musicologists'
+    docs = db.get_documents_for_category(cat)
+    print(get_vectors([doc['id'] for doc in docs]))

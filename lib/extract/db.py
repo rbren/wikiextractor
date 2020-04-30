@@ -104,9 +104,15 @@ def delete_token_counts(counts):
     execute(q, values, True)
 
 def get_documents_for_category(cat_id):
-    q = "SELECT cl_from FROM categorylinks WHERE cl_to=%s"
+    q = """
+    SELECT cl_from, title
+    FROM categorylinks
+    INNER JOIN documents
+        ON documents.id=cl_from
+    WHERE cl_to=%s
+    """
     results = retrieve(q, [cat_id], True)
-    return [r[0] for r in results]
+    return [{'id': r[0], 'title': r[1]} for r in results]
 
 def get_token_counts_for_document(id):
     print("get toks", id)
@@ -123,6 +129,40 @@ def get_token_counts_for_document(id):
     for res in results:
         ret[res[0]] = res[1]
     return ret
+
+def get_token_counts_for_documents(ids):
+    q = """
+    SELECT document, tokens.token, num from token_counts
+        INNER JOIN tokens
+        ON tokens.id=token_counts.token
+    WHERE
+        document IN (
+    """ + ", ".join(["%s" for id in ids]) + ")"
+    q += " ORDER BY num"
+
+    results = retrieve(q, ids, True)
+    ret = {}
+    for id in ids:
+        ret[id] = {}
+    for res in results:
+        id = res[0]
+        token = res[1]
+        count = res[2]
+        ret[id][token] = count
+    return ret
+
+def get_categories():
+    q = """
+    SELECT cl_to, count(*) as num FROM categorylinks
+    WHERE
+      cl_to NOT LIKE '%%_births' AND
+      cl_to NOT LIKE '%%_deaths'
+    GROUP BY cl_to
+    HAVING num >= 100
+    ORDER BY num DESC
+    """
+    results = retrieve(q, [], True)
+    return [{'name': r[0].decode('utf-8'), 'count': r[1]} for r in results]
 
 if __name__ == "__main__":
     process_document(1, "doc 1", {"c": 3, "a": 1, "b": 2})

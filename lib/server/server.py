@@ -4,17 +4,27 @@ import json
 import numpy as np
 
 from ..vectors import get_vectors
+from ..extract import db
 
-BROWSER_DIR = os.path.dirname(__file__) + "/web/dist/browser/"
+BROWSER_DIR = os.path.dirname(__file__) + "/../../web/src"
 app = Flask(__name__, static_folder=BROWSER_DIR, static_url_path="/")
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
-@app.route('/vectors')
-def reload_model():
+categories = db.get_categories()
+
+@app.route('/api/categories')
+def get_categories():
+    return jsonify(categories)
+
+@app.route('/api/articles')
+def get_articles():
     category = request.args.get('category')
     print(category)
-    vecs = get_vectors(category)
-    return jsonify(vecs)
+    docs = db.get_documents_for_category(category)
+    vecs = get_vectors([doc['id'] for doc in docs])
+    for i in range(len(docs)):
+        docs[i]['vector'] = vecs[i]
+    return jsonify(docs)
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
