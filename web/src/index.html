@@ -18,6 +18,7 @@
 </head>
 <body>
   <div id="app" class="container-fluid">
+    <h1>Wiki Extractor</h1>
     <div class="dropdown">
       <button class="btn btn-primary dropdown-toggle" type="button" id="categoryDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         {{ category || "Choose a category" }}
@@ -29,9 +30,22 @@
       </div>
     </div>
     <div class="alert alert-info" v-if="loading">Loading...</div>
-    <div class="articles">
-      <div class="article" v-for="article in articles">
-        <a v-bind:href="'https://en.wikipedia.org/?curid=' + article.id" target="_blank">{{ article.title }}</a>
+    <div class="row">
+      <div class="col" v-if="articles">
+        <h2>Articles</h2>
+        <div class="articles">
+          <div class="article" v-for="article in articles">
+            <a v-bind:href="'https://en.wikipedia.org/?curid=' + article.id" target="_blank">{{ article.title }}</a>
+          </div>
+        </div>
+      </div>
+      <div class="col" v-if="variations">
+        <h2>Token Importance</h2>
+        <div class="variations">
+          <div class="variation" v-for="variation in variations">
+            {{ variation.token }}: {{ variation.variation }}
+          </div>
+        </div>
       </div>
     </div>
   </div>

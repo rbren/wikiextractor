@@ -41,19 +41,23 @@ def get_vectors(doc_ids):
 
     stddev_sorted = []
     for tok in stddev:
-        stddev_sorted.append((tok, stddev[tok]))
-    stddev_sorted = sorted(stddev_sorted, key=lambda tup: tup[1])
-    stddev_sorted = [s for s in stddev_sorted if s[1] > STD_DEV_CUTOFF]
+        stddev_sorted.append({'token': tok, 'variation': stddev[tok]})
+    stddev_sorted = sorted(stddev_sorted, key=lambda tup: -tup['variation'])
+    stddev_sorted = [s for s in stddev_sorted if s['variation'] > STD_DEV_CUTOFF]
 
+    freqs_ret = [{} for id in doc_ids]
     vectors = [[] for d in docs]
     for stddev in stddev_sorted:
-        tok = stddev[0]
+        tok = stddev['token']
         for i in range(len(vectors)):
             val = freqs[i][tok] if tok in freqs[i] else 0.0
             vectors[i].append(val)
-    return np.array(vectors)
+            freqs_ret[i][tok] = val
+
+    return np.array(vectors), freqs_ret, stddev_sorted
 
 if __name__ == '__main__':
     cat = '20th-century_musicologists'
     docs = db.get_documents_for_category(cat)
-    print(get_vectors([doc['id'] for doc in docs]))
+    vecs, freqs, vars = get_vectors([doc['id'] for doc in docs])
+    print(vecs)

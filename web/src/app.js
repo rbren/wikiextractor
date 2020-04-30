@@ -5,6 +5,7 @@ var app = new Vue({
     categories: null,
     category: null,
     articles: null,
+    variations: null,
     loading: false,
   },
   beforeMount() {
@@ -19,7 +20,8 @@ var app = new Vue({
       this.category = cat;
       this.loading = true;
       const res = await axios.get('/api/articles?category=' + this.category);
-      this.articles = res.data;
+      this.articles = res.data.articles;
+      this.variations = res.data.variations;
       this.loading = false;
     }
   },
