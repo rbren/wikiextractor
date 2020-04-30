@@ -45,8 +45,37 @@ To cut down on the size of the database, you can delete some of the less
 helpful categories:
 ```
 DELETE FROM categorylinks WHERE
+  cl_to='All_pages_needing_cleanup' OR
+  cl_to='Old_requests_for_peer_review' OR
+  cl_to='Exclude_in_print' OR
+  cl_to='Cite_iucn_maint' OR
+  cl_to='Dynamic_lists' OR
+  cl_to='Track_variant_DoB' OR
+  cl_to='Commons_category_link_is_locally_defined' OR
+  cl_to='Navboxes_using_background_colours' OR
+  cl_to='GFDL_files_with_disclaimers' OR
+  cl_to='Former_good_article_nominees' OR
+  cl_to='CanElecResTopTest_with_bare_year' OR
+  cl_to='Transwikied_to_Wiktionary' OR
+  cl_to LIKE 'Year_of_%' OR
+  cl_to LIKE 'Place_of_%' OR
+  cl_to LIKE 'Template:%' OR
+  cl_to LIKE 'Singlechart_%' OR
+  cl_to LIKE 'Use_British_English_%' OR
+  cl_to LIKE 'Use_Australian_English_%' OR
+  cl_to LIKE 'Incomplete_lists_%' OR
+  cl_to LIKE 'Fair_use_%' OR
+  cl_to LIKE 'Certification_Table_Entry_%' OR
+  cl_to LIKE 'Webarchive_%' OR
+  cl_to LIKE 'Infobox_%' OR
+  cl_to LIKE '%varB_%' OR
+  cl_to LIKE '%_TOC' OR
+  cl_to LIKE 'Shared_IP_addresses_%' OR
   cl_to LIKE '%isambiguation%' OR
+  cl_to LIKE '%on-free%' OR
+  cl_to LIKE 'User_%' OR
   cl_to LIKE 'Pages_%' OR
+  cl_to LIKE 'Talk_pages_%' OR
   cl_to LIKE '%_pages' OR
   cl_to LIKE '%rticles%' OR
   cl_to LIKE '%ikidata%' OR
@@ -57,7 +86,10 @@ DELETE FROM categorylinks WHERE
   cl_to LIKE '%edirects%' OR
   cl_to LIKE '%free_media' OR
   cl_to LIKE '%_templates' OR
+  cl_to LIKE '%_template_errors' OR
   cl_to LIKE 'CS1%' OR
+  cl_to LIKE 'Use_dmy_%' OR
+  cl_to LIKE 'Use_mdy_%' OR
   cl_to LIKE '%_no_TOC';
 ```
 
