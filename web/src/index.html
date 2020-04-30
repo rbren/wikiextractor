@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>My first Vue app</title>
+
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+  <link rel="stylesheet" href="styles.css">
+
+  <script
+    src="https://code.jquery.com/jquery-3.5.0.min.js"
+    integrity="sha256-xNzN2a4ltkB44Mc/Jz3pT4iU1cmeR0FkXs4pru/JxaQ="
+    crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.bundle.min.js"></script>
+
+  <script src="https://unpkg.com/vue"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js"></script>
+
+</head>
+<body>
+  <div id="app" class="container-fluid">
+    <div class="dropdown">
+      <button class="btn btn-primary dropdown-toggle" type="button" id="categoryDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        {{ category || "Choose a category" }}
+      </button>
+      <div class="dropdown-menu">
+        <a class="dropdown-item" v-for="cat in categories" @click="setCategory(cat.name)">
+          <span><b>{{ cat.name }}</b> ({{cat.count}})</span>
+        </a>
+      </div>
+    </div>
+    <div class="alert alert-info" v-if="loading">Loading...</div>
+    <div class="articles">
+      <div class="article" v-for="article in articles">
+        <a v-bind:href="'https://en.wikipedia.org/?curid=' + article.id" target="_blank">{{ article.title }}</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
