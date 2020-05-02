@@ -10,7 +10,7 @@
   overflow-x: hidden;
 }
 
-.articles, .variations {
+.articles, .tokens {
   max-height: 500px;
   overflow-y: scroll;
   border: 1px solid #ccc;

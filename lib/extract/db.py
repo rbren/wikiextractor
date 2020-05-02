@@ -164,6 +164,14 @@ def get_categories():
     results = retrieve(q, [], True)
     return [{'name': r[0].decode('utf-8'), 'count': r[1]} for r in results]
 
+def get_random_articles(num):
+    q = """
+    SELECT id from documents
+    LIMIT %s
+    """
+    results = retrieve(q, [num], True)
+    return [a[0] for a in results]
+
 if __name__ == "__main__":
     process_document(1, "doc 1", {"c": 3, "a": 1, "b": 2})
     process_document(2, "doc 2", {"c": 2, "a": 10, "d": 4})

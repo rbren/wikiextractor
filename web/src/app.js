@@ -3,6 +3,7 @@ const HIDDEN_DIM = 10;
 const ENCODING_DIM = 2;
 
 function normalizeVector(vec) {
+  return vec;
   return vec.map(v => {
     if (v === 0) {
       return -10;
@@ -21,11 +22,13 @@ var app = new Vue({
       category: null,
       articles: null,
       article: null,
-      variations: null,
+      tokens: null,
+      weights: null,
       loading: false,
       inputs: null,
       encodings: null,
       loss: 0.0,
+      query: '',
     };
   },
   beforeMount() {
@@ -42,7 +45,8 @@ var app = new Vue({
       const res = await axios.get('/api/articles?category=' + this.category);
       this.articles = res.data.articles;
       this.articles.forEach(a => a.vector = normalizeVector(a.vector));
-      this.variations = res.data.variations;
+      this.tokens = res.data.tokens;
+      this.weights = res.data.weights;
       this.inputs = tf.tensor(this.articles.map(a => [a.vector]));
       this.loading = false;
       this.setupTraining();

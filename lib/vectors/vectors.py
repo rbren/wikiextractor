@@ -1,9 +1,39 @@
+import math
 import statistics
 import numpy as np
 from ..extract import db
 
 MIN_APPEARANCE_RATIO = .1
-STD_DEV_CUTOFF = 2.5
+STD_DEV_CUTOFF = 0.0
+
+NUM_DOCS_FOR_IDF = 1000
+IDFs = {}
+
+def get_idfs(docs):
+    num_docs_for_tok = {}
+    for doc in docs:
+        for tok in doc:
+            if tok not in num_docs_for_tok:
+                num_docs_for_tok[tok] = 0
+            num_docs_for_tok[tok] += 1
+    idfs = {}
+    for tok in num_docs_for_tok:
+        idfs[tok] = math.log(float(len(docs)) / float(num_docs_for_tok[tok]))
+    return idfs
+
+def initialize():
+    global IDFs
+    doc_ids = db.get_random_articles(NUM_DOCS_FOR_IDF)
+    details = db.get_token_counts_for_documents(doc_ids)
+    docs = [details[id] for id in doc_ids]
+    IDFs = get_idfs(docs)
+
+initialize()
+
+def get_idf(token):
+    if token in IDFs:
+        return IDFs[token]
+    return math.log(float(NUM_DOCS_FOR_IDF) / 1.0)
 
 def get_frequencies(doc):
     doc_total = 0
@@ -36,28 +66,31 @@ def get_stddev(docs):
 def get_vectors(doc_ids):
     details = db.get_token_counts_for_documents(doc_ids)
     docs = [details[id] for id in doc_ids]
-    freqs = [get_frequencies(doc) for doc in docs]
-    stddev = get_stddev(freqs)
+    sub_idfs = get_idfs(docs)
+    tfs = [get_frequencies(doc) for doc in docs]
+    all_tokens = []
+    for doc in docs:
+        for token in doc:
+            if token in all_tokens: continue
+            if get_idf(token) < math.log(2): continue # occurs in > 1/2 docs
+            if sub_idfs[token] > math.log(10): continue # occurs in < 1/10 docs in this cat
+            all_tokens.append(token)
 
-    stddev_sorted = []
-    for tok in stddev:
-        stddev_sorted.append({'token': tok, 'variation': stddev[tok]})
-    stddev_sorted = sorted(stddev_sorted, key=lambda tup: -tup['variation'])
-    stddev_sorted = [s for s in stddev_sorted if s['variation'] > STD_DEV_CUTOFF]
+    all_tokens = sorted(all_tokens, key=lambda tok: sub_idfs[tok])
 
-    freqs_ret = [{} for id in doc_ids]
     vectors = [[] for d in docs]
-    for stddev in stddev_sorted:
-        tok = stddev['token']
-        for i in range(len(vectors)):
-            val = freqs[i][tok] if tok in freqs[i] else 0.0
-            vectors[i].append(val)
-            freqs_ret[i][tok] = val
+    for tok in all_tokens:
+        for j in range(len(vectors)):
+            tf = tfs[j][tok] if tok in tfs[j] else 0.0
+            idf = get_idf(tok)
+            vectors[j].append(tf * idf)
 
-    return np.array(vectors), freqs_ret, stddev_sorted
+    return np.array(vectors), [sub_idfs[t] for t in all_tokens], all_tokens
 
 if __name__ == '__main__':
     cat = '20th-century_musicologists'
     docs = db.get_documents_for_category(cat)
-    vecs, freqs, vars = get_vectors([doc['id'] for doc in docs])
-    print(vecs)
+    vecs, idfs, toks = get_vectors([doc['id'] for doc in docs])
+    print('got', len(toks))
+    for i in range(len(toks)):
+        print(toks[i], idfs[i])

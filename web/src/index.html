@@ -27,7 +27,10 @@
         {{ category || "Choose a category" }}
       </button>
       <div class="dropdown-menu">
-        <a class="dropdown-item" v-for="cat in categories" @click="setCategory(cat.name)">
+        <a class="dropdown-item">
+          <input class="form-control" v-model="query">
+        </a>
+        <a class="dropdown-item" v-for="cat in categories" v-show="cat.name.indexOf(query) !== -1" @click="setCategory(cat.name)">
           <span><b>{{ cat.name }}</b> ({{cat.count}})</span>
         </a>
       </div>
@@ -55,11 +58,11 @@
           </div>
         </div>
       </div>
-      <div class="col" v-if="variations">
+      <div class="col" v-if="tokens">
         <h2>Token Importance</h2>
-        <div class="variations">
-          <div class="variation" v-for="variation in variations">
-            {{ variation.token }}: {{ variation.variation }}
+        <div class="tokens">
+          <div class="token" v-for="(token, idx) in tokens">
+            {{ token }}: {{ weights[idx] }}
           </div>
         </div>
       </div>
@@ -69,8 +72,9 @@
         <h2>{{ article.title }}</h2>
         <div>{{ article.encoded }}</div>
         <table>
-          <tr v-for="(variation, idx) in variations">
-            <td>{{ variation.token }}</td>
+          <tr v-for="(token, idx) in tokens">
+            <td>{{ token }}</td>
+            <td>{{ weights[idx] }}</td>
             <td>{{ article.vector[idx] }}</td>
             <td v-if="article.decoded">{{ article.decoded[idx] }}</td>
           </tr>
