@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>My first Vue app</title>
+  <title>WikiSort</title>
 
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
   <link rel="stylesheet" href="styles.css">
@@ -14,11 +14,14 @@
 
   <script src="https://unpkg.com/vue"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/6.6.4/math.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.0.0/dist/tf.min.js"></script>
+  <script src="model.js"></script>
 
 </head>
 <body>
   <div id="app" class="container-fluid">
-    <h1>Wiki Extractor</h1>
+    <h1>WikiSort</h1>
     <div class="dropdown">
       <button class="btn btn-primary dropdown-toggle" type="button" id="categoryDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         {{ category || "Choose a category" }}
@@ -30,12 +33,25 @@
       </div>
     </div>
     <div class="alert alert-info" v-if="loading">Loading...</div>
+    <div class="row" v-if="articles">
+      <div class="col">
+        <div class="btn-toolbar">
+          <button class="btn btn-primary" @click="train(100)">Train</a>
+          <button class="btn btn-primary" @click="setupTraining()">Reset</a>
+        </div>
+      </div>
+      <div class="col">{{ loss }}</div>
+    </div>
     <div class="row">
       <div class="col" v-if="articles">
         <h2>Articles</h2>
         <div class="articles">
-          <div class="article" v-for="article in articles">
-            <a v-bind:href="'https://en.wikipedia.org/?curid=' + article.id" target="_blank">{{ article.title }}</a>
+          <div class="article" v-for="(article, idx) in articles">
+            <a href="#" @click="setArticle(article)">{{ article.title }}</a>
+            <a v-bind:href="'https://en.wikipedia.org/?curid=' + article.id" target="_blank">
+              -&gt;
+            </a>
+            <span v-if="article.encoded">{{ article.encoded }}</span>
           </div>
         </div>
       </div>
@@ -48,6 +64,20 @@
         </div>
       </div>
     </div>
+    <div class="row">
+      <div class="col" v-if="article">
+        <h2>{{ article.title }}</h2>
+        <div>{{ article.encoded }}</div>
+        <table>
+          <tr v-for="(variation, idx) in variations">
+            <td>{{ variation.token }}</td>
+            <td>{{ article.vector[idx] }}</td>
+            <td v-if="article.decoded">{{ article.decoded[idx] }}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
   </div>
 
   <script src="app.js"></script>
