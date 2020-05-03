@@ -1,6 +1,6 @@
 const EPOCHS = 1000;
 const HIDDEN_DIM = 10;
-const ENCODING_DIM = 2;
+const ENCODING_DIM = 1;
 
 function normalizeVector(vec) {
   return vec;
@@ -18,6 +18,7 @@ var app = new Vue({
   data() {
     window.app = this;
     return {
+      vaeOpts: {},
       categories: null,
       category: null,
       articles: null,
@@ -27,6 +28,7 @@ var app = new Vue({
       loading: false,
       inputs: null,
       encodings: null,
+      step: 0,
       loss: 0.0,
       query: '',
     };
@@ -35,6 +37,12 @@ var app = new Vue({
     this.setCategories()
   },
   methods: {
+    formatNum(n) {
+      return Math.round(n * 10000) / 10000;
+    },
+    formatLoss(a, b) {
+      return this.formatNum(Math.abs(a - b));
+    },
     async setCategories() {
       const res = await axios.get('/api/categories');
       this.categories = res.data;
@@ -47,7 +55,7 @@ var app = new Vue({
       this.articles.forEach(a => a.vector = normalizeVector(a.vector));
       this.tokens = res.data.tokens;
       this.weights = res.data.weights;
-      this.inputs = tf.tensor(this.articles.map(a => [a.vector]));
+      this.inputs = tf.tensor(this.articles.map(a => a.vector));
       this.loading = false;
       this.setupTraining();
     },
@@ -55,44 +63,89 @@ var app = new Vue({
       this.article = a;
     },
     setupTraining() {
+      this.step = 0.0;
       this.loss = 0.0;
       this.encodings = null;
-      this.autoencoder = newAutoencoder({
+
+      this.vaeOpts = {
         originalDim: this.articles[0].vector.length,
         intermediateDim: HIDDEN_DIM,
         latentDim: ENCODING_DIM,
-      });
+      }
+      this.encoder = newEncoder(this.vaeOpts);
+      this.decoder = newDecoder(this.vaeOpts);
+      this.vae = newVAE(this.encoder, this.decoder);
       this.optimizer = tf.train.adam();
+    },
+    startTraining() {
+      this.training = true;
+      this.trainBatch();
+    },
+    pauseTraining() {
+      this.training = false;
+    },
+    trainBatch() {
+      this.train(10);
+      this.updateEncodings();
+      window.draw(this.articles);
+      if (!this.training) return;
+      setTimeout(() => this.trainBatch(), 1000);
     },
     train(steps) {
       let finalLoss = 0.0;
       for (let step = 0; step < steps; step++) {
+        this.step++;
         console.log('step', step);
         this.optimizer.minimize(() => {
-          const [decoded, encoded] = this.autoencoder.apply(this.inputs);
-          const loss = tf.losses.meanSquaredError(this.inputs, decoded);
+          const outputs = this.vae.apply(this.inputs);
+          const loss = vaeLoss(this.inputs, outputs, this.vaeOpts)
           if (step === steps - 1) {
             finalLoss = loss.dataSync()[0];
-            console.log('set loss', finalLoss);
           }
           return loss;
         });
       }
       this.loss = finalLoss;
       console.log('loss', this.loss);
-      this.updateEncodings();
     },
     updateEncodings() {
-      let [decoded, encoded] = this.autoencoder.apply(this.inputs);
+      let [decoded, mean, logvar, encoded] = this.vae.apply(this.inputs);
       encoded = encoded.arraySync();
       decoded = decoded.arraySync();
       this.articles.forEach((art, idx) => {
-        art.encoded = encoded[idx][0];
-        art.decoded = decoded[idx][0];
+        art.encoded = encoded[idx];
+        art.decoded = decoded[idx];
       });
-      //math.reshape(this.encodings, [this.articles.length, ENCODING_DIM]);
-      //this.encodings = math.reshape(encoded.dataSync(), [this.articles.length, ENCODING_DIM])
-    }
+    },
+    decode(encoding) {
+      encoding = tf.tensor([encoding]);
+      let decoded = this.decoder.apply(encoding);
+      return decoded.arraySync()[0];
+    },
+    getDifferentiatingTokens() {
+      let min = null;
+      let max = null;
+      this.articles.forEach(art => {
+        if (min === null || art.encoded[0] < min) min = art.encoded[0];
+        if (max === null || art.encoded[0] > max) max = art.encoded[0];
+      })
+      console.log('min/max', min, max);
+
+      const a = this.decode([min]);
+      const b = this.decode([max]);
+      let diffs = this.tokens.map((token, idx) => {
+        return {token, diff: a[idx] - b[idx]};
+      });
+      diffs = diffs.sort((d1, d2) => d2.diff - d1.diff);
+      return diffs;
+    },
+    getLeftTokens() {
+      return this.getDifferentiatingTokens().slice(0, 10);
+    },
+    getRightTokens() {
+      let toks = this.getDifferentiatingTokens();
+      return toks.slice(toks.length - 10, toks.length);
+    },
   },
 })
 
