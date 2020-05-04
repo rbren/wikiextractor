@@ -43,14 +43,14 @@
         <h4 class="article-title"></h4>
       </div>
     </div>
-    <div class="row differentiating-terms" v-if="articles && articles[0].encoded">
+    <div class="row differentiating-tokens" v-if="articles && articles[0].encoded">
       <div class="col-6">
-        <h6>Left Terms</h6>
-        <span class="mr-2" v-for="tok in getLeftTokens()">{{ tok.token }}</span>
+        <h6>Left Tokens</h6>
+        <span class="mr-2" v-for="tok in leftTokens">{{ tok }}</span>
       </div>
       <div class="col-6">
-        <h6>Right Terms</h6>
-        <span class="mr-2" v-for="tok in getRightTokens()">{{ tok.token }}</span>
+        <h6>Right Tokens</h6>
+        <span class="mr-2" v-for="tok in rightTokens">{{ tok }}</span>
       </div>
     </div>
     <div class="row" v-if="articles">
@@ -62,13 +62,14 @@
         </div>
       </div>
       <div class="col">Step: {{ step }}</div>
-      <div class="col">Loss: {{ loss }}</div>
+      <div class="col">Test Loss: {{ testLoss }}</div>
+      <div class="col">Train Loss: {{ trainLoss }}</div>
     </div>
     <div class="row">
       <div class="col" v-if="articles">
         <h2>Articles</h2>
         <div class="articles">
-          <div class="article" v-for="(article, idx) in articles">
+          <div class="article" v-for="(article, idx) in articlesSorted">
             <a href="#" @click="setArticle(article)">{{ article.title }}</a>
             <a v-bind:href="'https://en.wikipedia.org/?curid=' + article.id" target="_blank">
               -&gt;
@@ -77,10 +78,10 @@
           </div>
         </div>
       </div>
-      <div class="col" v-if="tokens">
+      <div class="col" v-if="articles && articles[0].encoded">
         <h2>Token Importance</h2>
         <div class="tokens">
-          <div class="token" v-for="(token, idx) in tokens">
+          <div class="token" v-for="(token, idx) in tokensSorted">
             {{ token }}: {{ weights[idx] }}
           </div>
         </div>

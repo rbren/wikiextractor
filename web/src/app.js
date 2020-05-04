@@ -22,14 +22,15 @@ var app = new Vue({
       categories: null,
       category: null,
       articles: null,
+      articlesSorted: null,
       article: null,
       tokens: null,
       weights: null,
       loading: false,
-      inputs: null,
       encodings: null,
       step: 0,
-      loss: 0.0,
+      testLoss: 0.0,
+      trainLoss: 0.0,
       query: '',
     };
   },
@@ -51,11 +52,10 @@ var app = new Vue({
       this.category = cat;
       this.loading = true;
       const res = await axios.get('/api/articles?category=' + this.category);
-      this.articles = res.data.articles;
+      this.articles = this.articlesSorted = res.data.articles;
       this.articles.forEach(a => a.vector = normalizeVector(a.vector));
       this.tokens = res.data.tokens;
       this.weights = res.data.weights;
-      this.inputs = tf.tensor(this.articles.map(a => a.vector));
       this.loading = false;
       this.setupTraining();
     },
@@ -63,8 +63,7 @@ var app = new Vue({
       this.article = a;
     },
     setupTraining() {
-      this.step = 0.0;
-      this.loss = 0.0;
+      this.step = this.testLoss = this.trainLoss = 0;
       this.encodings = null;
 
       this.vaeOpts = {
@@ -93,28 +92,46 @@ var app = new Vue({
     },
     train(steps) {
       let finalLoss = 0.0;
+      const {testSet, trainSet} = this.splitData();
       for (let step = 0; step < steps; step++) {
         this.step++;
         console.log('step', step);
         this.optimizer.minimize(() => {
-          const outputs = this.vae.apply(this.inputs);
-          const loss = vaeLoss(this.inputs, outputs, this.vaeOpts)
+          const outputs = this.vae.apply(trainSet);
+          const loss = vaeLoss(trainSet, outputs, this.vaeOpts)
           if (step === steps - 1) {
             finalLoss = loss.dataSync()[0];
           }
           return loss;
         });
       }
-      this.loss = finalLoss;
-      console.log('loss', this.loss);
+      this.trainLoss = finalLoss;
+      console.log("train loss", this.trainLoss);
+      const outputs = this.vae.apply(testSet);
+      const testLoss = vaeLoss(testSet, outputs, this.vaeOpts);
+      this.testLoss = testLoss.dataSync()[0];
+      console.log('test loss', this.testLoss);
+    },
+    splitData() {
+      const splitIdx = Math.ceil(this.articles.length * .2);
+      const data = this.articles.map(a => a.vector);
+      const trainSet = tf.tensor(data.slice(0, splitIdx));
+      const testSet = tf.tensor(data.slice(splitIdx, data.length));
+      return {testSet, trainSet};
+    },
+    getAllData() {
+      return tf.tensor(this.articles.map(a => a.vector));
     },
     updateEncodings() {
-      let [decoded, mean, logvar, encoded] = this.vae.apply(this.inputs);
+      let [decoded, mean, logvar, encoded] = this.vae.apply(this.getAllData());
       encoded = encoded.arraySync();
       decoded = decoded.arraySync();
       this.articles.forEach((art, idx) => {
         art.encoded = encoded[idx];
         art.decoded = decoded[idx];
+      });
+      this.articlesSorted = this.articles.map(a => a).sort((a1, a2) => {
+        return a1.encoded[0] - a2.encoded[0];
       });
     },
     decode(encoding) {
@@ -122,14 +139,15 @@ var app = new Vue({
       let decoded = this.decoder.apply(encoding);
       return decoded.arraySync()[0];
     },
-    getDifferentiatingTokens() {
+  },
+  computed: {
+    tokensSorted() {
       let min = null;
       let max = null;
-      this.articles.forEach(art => {
+      this.articlesSorted.forEach(art => {
         if (min === null || art.encoded[0] < min) min = art.encoded[0];
         if (max === null || art.encoded[0] > max) max = art.encoded[0];
       })
-      console.log('min/max', min, max);
 
       const a = this.decode([min]);
       const b = this.decode([max]);
@@ -137,13 +155,13 @@ var app = new Vue({
         return {token, diff: a[idx] - b[idx]};
       });
       diffs = diffs.sort((d1, d2) => d2.diff - d1.diff);
-      return diffs;
+      return diffs.map(t => t.token);
     },
-    getLeftTokens() {
-      return this.getDifferentiatingTokens().slice(0, 10);
+    leftTokens() {
+      return (this.tokensSorted || []).slice(0, 10);
     },
-    getRightTokens() {
-      let toks = this.getDifferentiatingTokens();
+    rightTokens() {
+      let toks = this.tokensSorted || [];
       return toks.slice(toks.length - 10, toks.length);
     },
   },
