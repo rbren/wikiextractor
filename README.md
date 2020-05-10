@@ -28,14 +28,29 @@ mysql -h $MS_HOST -u $MS_USER -D $MS_DATABASE --password=$MS_PASSWORD < migratio
 mysql -h $MS_HOST -u $MS_USER -D $MS_DATABASE --password=$MS_PASSWORD < migrations/002_text.sql
 ```
 
-### Category Links
+### Wikipedia Dumps
 Wikipedia provides a MySQL backup of all links to category pages.
 We can ingest these and clean up some of the ones we don't need.
 
-Note that the database is huge, and will take hours to ingest.
+Note that you should replace `20200401` with the latest date listed at dumps.wikimedia.org/enwiki
+
 ```
-curl -L "https://dumps.wikimedia.org/enwiki/20200401/enwiki-20200401-categorylinks.s
-ql.gz" > catlinks.sql
+export TARGET_DATE=20200401
+```
+
+#### Pages
+```
+curl -L "https://dumps.wikimedia.org/enwiki/$TARGET_DATE/enwiki-$TARGET_DATE-page.sql.gz" > pages.sql.gz
+gunzip pages.sql.gz
+mysql -h $MS_HOST -u $MS_USER -D $MS_DATABASE --password=$MS_PASSWORD < pages.sql
+rm -rf pages.sql
+```
+
+#### Category Links
+Note that this table is huge, and will take hours to ingest.
+```
+curl -L "https://dumps.wikimedia.org/enwiki/$TARGET_DATE/enwiki-$TARGET_DATE-categorylinks.sql.gz" > catlinks.sql.gz
+gunzip catlinks.sql.gz
 mysql -h $MS_HOST -u $MS_USER -D $MS_DATABASE --password=$MS_PASSWORD < catlinks.sql
 # this will take hours
 rm -rf catlinks.sql
