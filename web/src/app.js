@@ -1,6 +1,7 @@
 const EPOCHS = 1000;
 const HIDDEN_DIM = 10;
 const ENCODING_DIM = 1;
+const TRAIN_SIZE = 0.8;
 
 function normalizeVector(vec) {
   return vec;
@@ -34,7 +35,7 @@ var app = new Vue({
       query: '',
     };
   },
-  beforeMount() {
+  created() {
     this.setCategories()
   },
   methods: {
@@ -75,6 +76,7 @@ var app = new Vue({
       this.decoder = newDecoder(this.vaeOpts);
       this.vae = newVAE(this.encoder, this.decoder);
       this.optimizer = tf.train.adam();
+      this.trainBatch();
     },
     startTraining() {
       this.training = true;
@@ -97,8 +99,11 @@ var app = new Vue({
         this.step++;
         console.log('step', step);
         this.optimizer.minimize(() => {
-          const outputs = this.vae.apply(trainSet);
-          const loss = vaeLoss(trainSet, outputs, this.vaeOpts)
+          const inputs = this.getTensor(trainSet);
+          const outputs = this.vae.apply(inputs);
+          const encodings = outputs[3].arraySync();
+          const fixedEncodings = tf.tensor(trainSet.map((t, idx) => t.fixed || encodings[idx]));
+          const loss = vaeLoss(inputs, outputs, fixedEncodings);
           if (step === steps - 1) {
             finalLoss = loss.dataSync()[0];
           }
@@ -106,18 +111,23 @@ var app = new Vue({
         });
       }
       this.trainLoss = finalLoss;
-      console.log("train loss", this.trainLoss);
-      const outputs = this.vae.apply(testSet);
-      const testLoss = vaeLoss(testSet, outputs, this.vaeOpts);
+      const testInputs = this.getTensor(testSet);
+      const outputs = this.vae.apply(testInputs);
+      const testLoss = vaeLoss(testInputs, outputs);
       this.testLoss = testLoss.dataSync()[0];
-      console.log('test loss', this.testLoss);
     },
     splitData() {
-      const splitIdx = Math.ceil(this.articles.length * .2);
-      const data = this.articles.map(a => a.vector);
-      const trainSet = tf.tensor(data.slice(0, splitIdx));
-      const testSet = tf.tensor(data.slice(splitIdx, data.length));
+      const fixedPoints = this.articles.filter(a => a.fixed);
+      const unfixedPoints = this.articles.filter(a => !a.fixed);
+      const splitIdx = Math.ceil(this.articles.length * TRAIN_SIZE) - fixedPoints.length;
+      const trainSet = fixedPoints.concat(unfixedPoints.slice(0, splitIdx));
+      const testSet = unfixedPoints.slice(splitIdx, unfixedPoints.length);
+      console.log('f/uf', fixedPoints.length, unfixedPoints.length);
+      console.log('s/r', testSet.length, trainSet.length);
       return {testSet, trainSet};
+    },
+    getTensor(articles) {
+      return tf.tensor(articles.map(a => a.vector));
     },
     getAllData() {
       return tf.tensor(this.articles.map(a => a.vector));

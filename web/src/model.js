@@ -86,20 +86,27 @@ function newVAE(encoder, decoder) {
   return v;
 }
 
-function vaeLoss(inputs, outputs) {
+function vaeLoss(inputs, outputs, fixedEncodings) {
   return tf.tidy(() => {
     const originalDim = inputs.shape[1];
     const decoderOutput = outputs[0];
     const zMean = outputs[1];
     const zLogVar = outputs[2];
+    const encodings = outputs[3];
+    fixedEncodings = fixedEncodings || encodings;
 
     const reconstructionLoss =
         tf.losses.meanSquaredError(inputs, decoderOutput).mul(originalDim);
+    const encodingLoss =
+        tf.losses.meanSquaredError(fixedEncodings, encodings).mul(originalDim);
 
     let klLoss = zLogVar.add(1).sub(zMean.square()).sub(zLogVar.exp());
     klLoss = klLoss.sum(-1).mul(-0.5);
 
-    return reconstructionLoss.add(klLoss).mean();
+    const baseLoss = reconstructionLoss.add(klLoss).mean();
+    const encLoss = encodingLoss.sum();
+    console.log('loss', baseLoss.dataSync(), encLoss.dataSync());
+    return baseLoss.add(encLoss);
   });
 }
 

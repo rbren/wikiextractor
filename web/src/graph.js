@@ -40,16 +40,26 @@ function draw(data) {
     .domain([0, 1])
     .range([ height, 0]);
 
-  svg.append('g')
+  var dragHandler = d3.drag()
+      .on("drag", function(d) {
+        const point = x.invert(d3.event.x);
+        d.fixed = d.encoded = [point];
+        d3.select(this)
+          .attr("cx", d => x(d.encoded[0]))
+          .style("fill", d => d.fixed ? 'red' : "#69b3a2")
+      });
+
+  var points = svg.append('g')
     .selectAll("circle")
     .data(data)
     .enter()
     .append("circle")
       .attr("cx", d => x(d.encoded[0]))
       .attr("cy", d => y(.5))
-      .attr("r", 1.5)
-      .style("fill", "#69b3a2")
+      .attr("r", 3)
+      .style("fill", d => d.fixed ? 'red' : "#69b3a2")
       .on("mouseover", (d) => {
-        $('.article-title').text(d.title);
+        $('.article-title').html(`<a href="https://en.wikipedia.org/?curid=${d.id}" target="_blank">${d.title}</a>`);
       })
+  dragHandler(points);
 }
