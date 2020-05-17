@@ -32,7 +32,7 @@ var app = new Vue({
       step: 0,
       testLoss: 0.0,
       trainLoss: 0.0,
-      query: '',
+      queryRaw: '',
     };
   },
   created() {
@@ -48,13 +48,20 @@ var app = new Vue({
     async setCategories() {
       const res = await axios.get('/api/categories');
       this.categories = res.data;
+      this.categories.forEach(cat => {
+        cat.displayName = cat.name.replace(/_/g, ' ');
+        cat.queryName = cat.displayName.toLowerCase();
+      })
     },
     async setCategory(cat) {
       this.category = cat;
       this.loading = true;
-      const res = await axios.get('/api/articles?category=' + this.category);
+      const res = await axios.get('/api/articles?category=' + this.category.name);
       this.articles = this.articlesSorted = res.data.articles;
-      this.articles.forEach(a => a.vector = normalizeVector(a.vector));
+      this.articles.forEach(a => {
+        a.displayTitle = a.title.replace(/_/g, '');
+        a.vector = normalizeVector(a.vector)
+      });
       this.tokens = res.data.tokens;
       this.weights = res.data.weights;
       this.loading = false;
@@ -151,6 +158,9 @@ var app = new Vue({
     },
   },
   computed: {
+    query: function() {
+      return this.queryRaw.toLowerCase();
+    },
     tokensSorted() {
       let min = null;
       let max = null;
