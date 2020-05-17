@@ -103,16 +103,34 @@ def delete_token_counts(counts):
     values = [item for sublist in counts for item in sublist[0:2]]
     execute(q, values, True)
 
-def get_documents_for_category(cat_id):
+def get_documents_for_category(cat_id, ids_to_skip=[]):
+    if cat_id in ids_to_skip:
+        return []
+    ids_to_skip.append(cat_id)
     q = """
-    SELECT cl_from, title
+    SELECT cl_from, cl_type
     FROM categorylinks
-    INNER JOIN documents
-        ON documents.id=cl_from
     WHERE cl_to=%s
     """
     results = retrieve(q, [cat_id], True)
-    return [{'id': r[0], 'title': r[1]} for r in results]
+    ids = [r[0] for r in results if r[1] == b'page']
+    subcats = [r[0] for r in results if r[1] == b'subcat']
+    if len(subcats) > 0:
+        subcat_names = get_page_titles(subcats)
+        for subcat in subcat_names:
+            ids += get_documents_for_category(subcat, ids_to_skip)
+            ids_to_skip.append(subcat)
+    return list(set(ids))
+
+def get_page_titles(ids):
+    q = """
+    SELECT page_title
+    FROM page
+    WHERE page_id IN
+    """
+    q += "(" + ", ".join(["%s" for id in ids]) + ")"
+    results = retrieve(q, ids, True)
+    return [r[0].decode('utf-8') for r in results]
 
 def get_token_counts_for_document(id):
     print("get toks", id)
@@ -158,7 +176,7 @@ def get_categories():
       cl_to NOT LIKE '%%_births' AND
       cl_to NOT LIKE '%%_deaths'
     GROUP BY cl_to
-    HAVING num >= 100
+    HAVING num >= 50
     ORDER BY num DESC
     """
     results = retrieve(q, [], True)
@@ -173,5 +191,5 @@ def get_random_articles(num):
     return [a[0] for a in results]
 
 if __name__ == "__main__":
-    process_document(1, "doc 1", {"c": 3, "a": 1, "b": 2})
-    process_document(2, "doc 2", {"c": 2, "a": 10, "d": 4})
+    cats = get_documents_for_category('Programming_languages')
+    print('cats', len(cats))

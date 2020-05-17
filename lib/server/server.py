@@ -21,10 +21,12 @@ def get_articles():
     category = request.args.get('category')
     print(category)
     docs = db.get_documents_for_category(category)
-    vecs, idfs, tokens = get_vectors([doc['id'] for doc in docs])
-    for i in range(len(docs)):
-        docs[i]['vector'] = vecs[i]
-    return jsonify({'articles': docs, 'tokens': tokens, 'weights': idfs})
+    titles = db.get_page_titles(docs)
+    vecs, idfs, tokens = get_vectors(docs)
+    articles = []
+    for idx in range(len(titles)):
+        articles.append({'id': docs[idx], 'title': str(titles[idx]), 'vector': vecs[idx]})
+    return jsonify({'articles': articles, 'tokens': tokens, 'weights': idfs})
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')

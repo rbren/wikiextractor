@@ -90,7 +90,7 @@ def get_vectors(doc_ids):
 if __name__ == '__main__':
     cat = '20th-century_musicologists'
     docs = db.get_documents_for_category(cat)
-    vecs, idfs, toks = get_vectors([doc['id'] for doc in docs])
+    vecs, idfs, toks = get_vectors(docs)
     print('got', len(toks))
     for i in range(len(toks)):
         print(toks[i], idfs[i])
